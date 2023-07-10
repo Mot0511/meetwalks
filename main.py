@@ -1,131 +1,206 @@
 from aiogram import *
 from aiogram.types import *
-import sqlite3 as sq
+from modules.useSql import useSql
+from modules.getDistance import *
 import time
 import asyncio
-import threading
 import json
 import random
 from geopy.geocoders import Nominatim
-from geopy.distance import geodesic
 from modules.keyboards import *
+from itertools import groupby
+from modules.statistics import *
 
 api_token = open('token.txt', 'r').read()
 bot = Bot(token=api_token)
 dp = Dispatcher(bot)
-conn = sq.connect('db.db')
 
-action = ''
-isEditing = False
+action = {}
+isEditing = {}
 
-name = ''
-photo = ''
-genre = ''
-age = 0
-city = ''
-coordinates = []
+name = {}
+photo = {}
+genre = {}
+age = {}
+city = {}
+coordinates = {}
 
 applicants = {}
 teams = {}
 
-def useSql(q):
-    cur = conn.cursor()
-    cur.execute(q)
-    data = cur.fetchall()
-    conn.commit()
-    cur.close()
-    return data
-
 async def buildTeam(team, username):
+    new('teams')
     global teams
     team.append(username)
+    team = [el for el, _ in groupby(team)]
     teamId = random.randint(0, 10000)
     for i in team:
         teams[i] = teamId
         useSql(f"DELETE FROM inSearch WHERE username='{i}'")
 
-    print('Team: '+team)
     team = json.dumps(team).replace("'", '"')
-    useSql(f"INSERT INTO teams (id, members) VALUES ('{teamId}', '{team}')")
-    # print('Team was created')
-    print(teams)
+    chat = json.dumps([['Матвей', 'Hello'], ['Кирилл', 'Hi']]).replace("'", '"')
+    useSql(f"INSERT INTO teams (id, members, chat) VALUES ('{teamId}', '{team}', '{chat}')")
+    print('Team was created')
+    print(team)
 
+def sortByDistance(username, data):
+    N = len(data)
+    for i in range(N - 1):
+        for j in range(N - i - 1):
+            print(data[j][1])
+            if getDistance(username, data[j][1])[0] > getDistance(username, data[j + 1][1])[0]:
+                data[j], data[j + 1] = data[j + 1], data[j]
 
+    return data
+j = 0
 async def teaming():
-    # print('Start loop of searching')
-    people = useSql("SELECT * FROM inSearch")
-    team = [] # our team
-    if not(people == []):
-        # print('First person has gotten')
-        inSearchData = people[0] # getting inSearch data
-        userdata = useSql(f"SELECT * FROM users WHERE username='{inSearchData[1]}'")[0] # getting userdata
-        count = inSearchData[7] # getting count of members
-        # print('Checking for the presence of coordinates')
-        # checking for the presence of coordinates
-        if not(userdata[8] == '[]'):
-            # print('Getting people with the coordinates')
-            # getting people with the coordinates
-            if userdata[5] == 'Не важно':
-                data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND NOT username='{userdata[1]}' AND count={count} AND NOT coordinates='[]'")
-            else:
-                data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND NOT username='{userdata[1]}' AND count={count} AND NOT coordinates='[]'")
+    while True:
+        global j
+        people = useSql("SELECT * FROM inSearch")
+        team = []
+        if not(people == []):
+            if len(people) - 1 < j:
+                j = 0
+            inSearchData = people[j]
+            print(':'+inSearchData[1]+':')
+            userdata = useSql(f"SELECT * FROM users WHERE username='{inSearchData[1]}'")[0]# getting userdata
+            count = inSearchData[7]
 
-            # print('Checking for the presence people with coordinates')
-            # checking for the presence people with coordinates
-            if not(data == []):
-                # ---------- sort by descending distance
-                # print('Creating team')
-                if len(data) < count - 1:
+            if not(userdata[8] == '[]'):
+                if userdata[5] == 'Не важно':
+                    data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND count={count} AND NOT coordinates='[]' LIMIT {count - 1};")
+                    if data == []:
+                        data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[4]}' AND genre=anotherGenre AND NOT username='{userdata[1]}' AND count={count} AND NOT coordinates='[]' LIMIT {count - 1};")
+                else:
+                    data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='{userdata[4]}' AND NOT username='{userdata[1]}' AND count={count} AND NOT coordinates='[]' LIMIT {count - 1};")
+                    if data == []:
+                        data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND count={count} AND NOT coordinates='[]' LIMIT {count - 1};")
+                if not(data == []):
+                    data = sortByDistance(inSearchData[1], data)
                     for i in data:
                         team.append(i[1])
+
+                    team = [el for el, _ in groupby(team)]
+                    if len(team) == count - 1:
+                        await buildTeam(team, inSearchData[1])
+
+                    else:
+                        remainder = count - len(team)
+                        if userdata[5] == 'Не важно':
+                            data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[4]}' AND genre=anotherGenre AND NOT username='{userdata[1]}' AND count={count} AND NOT coordinates='[]' LIMIT {remainder - 1};")
+                        else:
+                            data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND count={count} AND NOT coordinates='[]' LIMIT {remainder - 1};")
+                        data = sortByDistance(inSearchData[1], data)
+                        for i in data:
+                            team.append(i[1])
+
+                        team = [el for el, _ in groupby(team)]
+                        if len(team) == count - 1:
+                            await buildTeam(team, inSearchData[1])
+
+            remainder = count - len(team)
+            if userdata[5] == 'Не важно':
+                data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND coordinates='[]' AND count={count} LIMIT {remainder - 1};")
+                if data == []:
+                    data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[4]}' AND genre=anotherGenre AND NOT username='{userdata[1]}' AND count={count} AND coordinates='[]' LIMIT {remainder - 1};")
+
+            else:
+                data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='{userdata[4]}' AND NOT username='{userdata[1]}' AND coordinates='[]' AND count={count} LIMIT {remainder - 1};")
+                if data == []:
+                    data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND count={count} AND coordinates='[]' LIMIT {remainder - 1};")
+
+            if not(data == []):
+                for i in data:
+                    team.append(i[1])
+
+                # if len(data) >= remainder - 1:
+                #     for i in range(remainder - 1):
+                #         team.append(data[i][1])
+
+            team = [el for el, _ in groupby(team)]
+            if len(team) == count - 1:
+                await buildTeam(team, inSearchData[1])
+
+            else:
+                remainder = count - len(team)
+                if userdata[5] == 'Не важно':
+                    data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[4]}' AND genre=anotherGenre AND NOT username='{userdata[1]}' AND count={count} AND coordinates='[]' LIMIT {remainder - 1};")
                 else:
-                    for i in range(count - 1):
-                        team.append(data[i][1])
+                    data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND count={count} AND coordinates='[]' LIMIT {remainder - 1};")
+                for i in data:
+                    team.append(i[1])
 
-                if len(team) == count:
+                team = [el for el, _ in groupby(team)]
+                if len(team) == count - 1:
                     await buildTeam(team, inSearchData[1])
-        # print('Getting people without the coordinates')
-        # getting people without the coordinates
-        if userdata[5] == 'Не важно':
-            data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND NOT username='{userdata[1]}' AND count={count}")
+        j += 1
+        await asyncio.sleep(1)
+
+async def findTeam(mess):
+    while True:
+        if useSql(f"SELECT * FROM inSearch WHERE username='{mess.from_user.username}'"):
+            await asyncio.sleep(2)
+            if mess.from_user.username in teams:
+                await bot.send_message(mess.chat.id, 'Компания сформирована:', reply_markup=kb_leave)
+                teamId = teams[mess.from_user.username]
+                members = json.loads(useSql(f"SELECT members FROM teams WHERE id={teamId}")[0][0])
+                members.remove(mess.from_user.username)
+                for member in members:
+                    await getUser(mess, member, mess.from_user.username)
+
+                global action
+                action[mess.from_user.username] = 'chat'
+                await bot.send_message(mess.chat.id, 'Общий чат:', reply_markup=kb_leave)
+                while mess.from_user.username in teams:
+                    username = useSql(f"SELECT * FROM users WHERE username='{mess.from_user.username}'")[0][2]
+                    oldChat = json.loads(useSql(f"SELECT chat FROM teams WHERE id={teamId}")[0][0])
+                    await asyncio.sleep(0.5)
+                    newChat = json.loads(useSql(f"SELECT chat FROM teams WHERE id={teamId}")[0][0])
+                    if not(oldChat == newChat):
+                        for i in oldChat:
+                            if i in newChat:
+                                newChat.remove(i)
+
+                        for i in newChat:
+                            if i[0] == username:
+                                newChat.remove(i)
+
+                        for i in newChat:
+                            await bot.send_message(mess.chat.id, f'{i[0]}: {i[1]}', reply_markup=kb_leave)
+                break
         else:
-            data = useSql(f"SELECT * FROM inSearch WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND NOT username='{userdata[1]}' AND count={count}")
+            break
+    return
 
-        if not(data == []):
-            if len(data) >= count - 1:
-                for i in range(count - 1):
-                    team.append(data[i][1])
-
-        if len(team) == count:
-            await buildTeam(team, inSearchData[1])
-
-
-    await asyncio.sleep(2)
-    await teaming()
-
-@dp.message_handler(commands=['s'])
+@dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     global action
     data = useSql(f"SELECT * FROM users WHERE username='{message.from_user.username}'")
     if not(data):
         await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе')
         await message.reply('Я вижу, что ты впервые здесь, давай создадим анкету.\nКак тебя зовут?')
-        action = 'setName'
+        action[message.from_user.username] = 'setName'
+        print(action)
     else:
         await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе', reply_markup=kb_menu)
 
-    await teaming()
-    await reset(message, message.from_user.username)
+    await reset(message, message.from_user.username, isAction=False)
+@dp.message_handler(commands=['statistics'])
+async def statistics(mess: types.Message):
+    print(1)
+    data = getStatistics()
+    await mess.reply(data, reply_markup=kb_menu)
 
-async def card(mess, data, distance):
+async def card(mess, data, distance=None, keyboard=kb_menu):
     if distance == None:
         caption = f'Имя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\n'
     else:
         caption = f'Имя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\n📍 {distance[0]} {distance[1]}'
 
-    await bot.send_photo(mess.chat.id, photo=data[3], caption=caption)
+    await bot.send_photo(mess.chat.id, photo=data[3], caption=caption, reply_markup=keyboard)
 
-async def reset(mess, user):
+async def reset(mess, user, isAction=True):
     useSql(f"DELETE FROM inSearch WHERE username='{user}'")
     if user in teams:
         useSql(f"DELETE FROM teams WHERE id='{teams[user]}'")
@@ -136,32 +211,17 @@ async def reset(mess, user):
     if mess.from_user.username in teams:
         del teams[mess.from_user.username]
 
-def getDistance(user, applicant):
-    userCoordinates = json.loads(useSql(f"SELECT coordinates FROM users WHERE username='{user}'")[0][0])
-    applicantCoordinates = json.loads(useSql(f"SELECT coordinates FROM users WHERE username='{applicant}'")[0][0])
-    if userCoordinates and applicantCoordinates:
-        distance = geodesic(userCoordinates, applicantCoordinates).km
-        unit = 'км'
-        if int(distance) == 0:
-            distance *= 1000
-            unit = 'м'
-
-        return [int(distance), unit]
-
-    return None
-
+    if isAction:
+        global action
+        action[mess.from_user.username] = ''
 async def getUser(mess, username, username2=None):
     data = useSql(f"SELECT * FROM users WHERE username='{username}'")[0]
-    distance = getDistance(username, username2)
+    if username2:
+        distance = getDistance(username, username2)
+    else:
+        distance = None
     await card(mess, data, distance)
 
-
-def check_approve(mess):
-    data = useSql(f"SELECT * FROM inSearch WHERE username='{mess.from_user.username}'")[0]
-    if data[6]:
-        return json.loads(data[6])
-    else:
-        return None
 
 @dp.message_handler()
 async def text(mess: types.Message):
@@ -171,19 +231,23 @@ async def text(mess: types.Message):
     global username
     username = mess.from_user.username
     if mess.text == 'Искать людей':
-        print('\n')
-        await mess.reply('Сколько людей должно быть в компании?', reply_markup=kb_count)
-        action = 'count'
+        userdata = useSql(f"SELECT * FROM users WHERE username='{mess.from_user.username}'")[0]
+        kb = kb_count
+        if not(userdata[5] == 'Не важно') and not(userdata[4] == userdata[5]):
+            kb = kb_count
+
+        await mess.reply('Сколько людей должно быть в компании?', reply_markup=kb)
+        action[mess.from_user.username] = 'count'
 
     elif mess.text == 'Моя анкета':
         data = useSql(f"SELECT * FROM users WHERE username='{mess.from_user.username}'")[0]
-        await card(mess, data, kb_edit)
+        await card(mess, data, keyboard=kb_edit)
 
     elif mess.text == 'Изменить анкету':
         global isEditing
-        isEditing = True
+        isEditing[mess.from_user.username] = True
         await mess.reply('Как тебя зовут?', reply_markup=types.ReplyKeyboardRemove())
-        action = 'setName'
+        action[mess.from_user.username] = 'setName'
 
     elif mess.text == 'В главное меню':
         await mess.reply('Главное меню:', reply_markup=kb_menu)
@@ -197,100 +261,109 @@ async def text(mess: types.Message):
         await reset(mess, mess.from_user.username)
 
     else:
-        if action == 'count':
-            if mess.text == 'Главное меню':
-                await mess.reply('Главное меню:', reply_markup=kb_menu)
-                await reset(mess, mess.from_user.username)
-                return
+        if mess.from_user.username in action:
+            if action[mess.from_user.username] == 'chat':
+                teamId = teams[mess.from_user.username]
+                team = useSql(f"SELECT * FROM teams WHERE id='{teamId}'")[0]
+                username = useSql(f"SELECT * FROM users WHERE username='{mess.from_user.username}'")[0][2]
+                chat = json.loads(team[2])
+                chat.append([username, mess.text])
+                chat = json.dumps(chat)
+                useSql(f"DELETE FROM teams WHERE id='{teamId}'")
+                useSql(f"INSERT INTO teams (id, members, chat) VALUES ({teamId}, '{team[1]}', '{chat}')")
 
-            count = int(mess.text)
-            userdata = useSql(f"SELECT * FROM users WHERE username='{mess.from_user.username}'")[0]
-            if useSql(f"SELECT username FROM inSearch WHERE username='{mess.from_user.username}'"):
-                useSql(f"DELETE FROM inSearch WHERE username='{mess.from_user.username}'")
+            elif action[mess.from_user.username] == 'count':
+                new('search')
+                if mess.text == 'Главное меню':
+                    await mess.reply('Главное меню:', reply_markup=kb_menu)
+                    await reset(mess, mess.from_user.username)
+                    return
 
-            useSql(f"INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('{mess.from_user.username}', '{userdata[7]}', '{userdata[6]}', '{userdata[4]}', '{userdata[5]}', '[]', {count}, '{userdata[8]}')")
+                await bot.send_message(mess.chat.id, 'Идет поиск...', reply_markup=kb_exit)
+                count = int(mess.text)
+                userdata = useSql(f"SELECT * FROM users WHERE username='{mess.from_user.username}'")[0]
+                if useSql(f"SELECT username FROM inSearch WHERE username='{mess.from_user.username}'"):
+                    useSql(f"DELETE FROM inSearch WHERE username='{mess.from_user.username}'")
 
-            print('Start while loop')
-            while True:
-                await asyncio.sleep(2)
-                if mess.from_user.username in teams:
-                    print(mess.from_user.username+': Team formed')
-                    await bot.send_message(mess.chat.id, 'Компания сформирована:', reply_markup=kb_leave)
-                    teamId = teams[mess.from_user.username]
-                    members = json.loads(useSql(f"SELECT members FROM teams WHERE id={teamId}")[0][0])
-                    for member in members:
-                        await getUser(mess, member, mess.from_user.username)
+                useSql(f"INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('{mess.from_user.username}', '{userdata[7]}', '{userdata[6]}', '{userdata[4]}', '{userdata[5]}', '[]', {count}, '{userdata[8]}')")
+                await findTeam(mess)
 
-                    await bot.send_message(mess.chat.id, 'Общий чат:')
-                    break
+            elif action[mess.from_user.username] == 'setName':
+                global name
+                name[mess.from_user.username] = mess.text
+                await mess.reply('Какой у тебя пол', reply_markup=kb_genre)
+                action[mess.from_user.username] = 'setGenre'
 
+            elif action[mess.from_user.username] == 'setGenre':
+                genre[mess.from_user.username] = mess.text
+                await mess.reply('Сколько тебе лет?', reply_markup=types.ReplyKeyboardRemove())
+                action[mess.from_user.username] = 'setAge'
 
-        elif action == 'setName':
-            global name
-            name = mess.text
-            await mess.reply('Какой у тебя пол', reply_markup=kb_genre)
-            action = 'setGenre'
+            elif action[mess.from_user.username] == 'setAge':
+                global age
+                age[mess.from_user.username] = mess.text
+                await mess.reply('В каком городе ты живёшь?\n\nТакже ты можешь отправить свою геолокацию, чтобы подобрать наиболее близких по расположению людей', reply_markup=kb_sendLocation)
+                action[mess.from_user.username] = 'setCity'
 
-        elif action == 'setGenre':
-            genre = mess.text
-            await mess.reply('Сколько тебе лет?', reply_markup=types.ReplyKeyboardRemove())
-            action = 'setAge'
+            elif action[mess.from_user.username] == 'setCity':
+                global city
+                city[mess.from_user.username] = mess.text
+                await mess.reply('Теперь отправь свое фото')
+                action[mess.from_user.username] = 'setPhoto'
 
-        elif action == 'setAge':
-            global age
-            age = mess.text
-            await mess.reply('В каком городе ты живёшь?\n\nТакже ты можешь отправить свою геолокацию, чтобы подобрать наиболее близких по расположению людей', reply_markup=kb_sendLocation)
-            action = 'setCity'
-
-        elif action == 'setCity':
-            global city
-            city = mess.text
-            await mess.reply('Теперь отправь свое фото')
-            action = 'setPhoto'
-
-        elif action == 'setAnotherGenre':
-            global coordinates
-            global anotherGenre
-            anotherGenre = mess.text
-            try:
-                if isEditing:
+            elif action[mess.from_user.username] == 'setAnotherGenre':
+                global coordinates
+                if mess.from_user.username in isEditing:
                     useSql(f"DELETE FROM users WHERE username='{mess.from_user.username}'")
+                else:
+                    new('users')
 
-                coordinates = json.dumps(coordinates)
-                useSql(f"INSERT INTO users (username, name, photo, genre, anotherGenre, age, city, coordinates) VALUES ('{mess.from_user.username}', '{name}', '{photo}', '{genre}', '{anotherGenre}', '{age}', '{city}', '{coordinates}')")
-                useSql(f"INSERT INTO users (username, name, photo, genre, anotherGenre, age, city, coordinates) VALUES ('{mess.from_user.username}', '{name}', '{photo}', '{genre}', '{anotherGenre}', '{age}', '{city}', '{coordinates}')")
+                if mess.from_user.username in coordinates:
+                    useSql(f"INSERT INTO users (username, name, photo, genre, anotherGenre, age, city, coordinates) VALUES ('{mess.from_user.username}', '{name[mess.from_user.username]}', '{photo[mess.from_user.username]}', '{genre[mess.from_user.username]}', '{mess.text}', '{age[mess.from_user.username]}', '{city[mess.from_user.username]}', '{json.dumps(coordinates[mess.from_user.username])}')")
+                else:
+                    useSql(f"INSERT INTO users (username, name, photo, genre, anotherGenre, age, city, coordinates) VALUES ('{mess.from_user.username}', '{name[mess.from_user.username]}', '{photo[mess.from_user.username]}', '{genre[mess.from_user.username]}', '{mess.text}', '{age[mess.from_user.username]}', '{city[mess.from_user.username]}', '[]')")
 
                 await mess.reply('Анкета готова', reply_markup=kb_menu)
-                isEditing = False
-                action = 0
-            except sq.Error as error:
-                await mess.reply('Ошибка создания анкеты, попробуйте позже')
-                print(error)
+                isEditing[mess.from_user.username] = False
+                action[mess.from_user.username] = 0
 
 @dp.message_handler(content_types=['photo'])
-async def photo(mess: types.Message):
+async def getPhoto(mess: types.Message):
     global isEditing
     global action
-    if action == 'setPhoto':
+    if action[mess.from_user.username] == 'setPhoto':
         global photo
         global useSql
-        photo = mess.photo[-1].file_id
+        photo[mess.from_user.username] = mess.photo[-1].file_id
         await mess.reply('Какой пол ты хочешь находить?', reply_markup=kb_genre2)
-        action = 'setAnotherGenre'
+        action[mess.from_user.username] = 'setAnotherGenre'
 
 @dp.message_handler(content_types=['location'])
 async def location(mess: types.Message):
     global coordinates
     global city
     global action
-    coordinates = [mess.location.latitude, mess.location.longitude]
+    coordinates[mess.from_user.username] = [mess.location.latitude, mess.location.longitude]
     geolocator = Nominatim(user_agent="Meetwalks")
-    location = geolocator.reverse(f"{coordinates[0]}, {coordinates[1]}")
-    city = location.address.split(', ')[-6]
+    location = geolocator.reverse(f"{coordinates[mess.from_user.username][0]}, {coordinates[mess.from_user.username][1]}")
+    city[mess.from_user.username] = location.address.split(', ')[-6]
     await mess.reply('Теперь отправь свое фото', reply_markup=types.ReplyKeyboardRemove())
-    action = 'setPhoto'
+    action[mess.from_user.username] = 'setPhoto'
+
+
 
 if __name__ == '__main__':
+    if not(useSql("SELECT * FROM inSearch WHERE username='Mot05112'")):
+        useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('Mot05112', 'Киров', 14, 'Мужской', 'Мужской', '[]', 3, '[56.084518, 56.680753]')")
+    if not(useSql("SELECT * FROM inSearch WHERE username='l1'")):
+        useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('l1', 'Киров', 14, 'Мужской', 'Женский', '[]', 2, '[56.084518, 56.680753]')")
+    if not(useSql("SELECT * FROM inSearch WHERE username='l2'")):
+        useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('l2', 'Киров', 14, 'Женский', 'Не важно', '[]', 3, '[]')")
+    if not(useSql("SELECT * FROM inSearch WHERE username='l3'")):
+        useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('l3', 'Киров', 14, 'Женский', 'Женский', '[]', 3, '[]')")
+    if not(useSql("SELECT * FROM inSearch WHERE username='l4'")):
+        useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('l4', 'Киров', 14, 'Женский', 'Мужской', '[]', 2, '[56.084518, 56.680753]')")
+
     loop = asyncio.get_event_loop()
     loop.create_task(teaming())
     executor.start_polling(dp, skip_updates=True)

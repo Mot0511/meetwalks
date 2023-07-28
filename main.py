@@ -14,7 +14,7 @@ from modules.invite import *
 
 
 api_token = open('token.txt', 'r').read()
-bot = Bot(token=api_token)
+bot = Bot(token=api_token, proxy="http://proxy.server:3128")
 dp = Dispatcher(bot)
 
 action = {}

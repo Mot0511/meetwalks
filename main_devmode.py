@@ -12,8 +12,7 @@ from itertools import groupby
 from modules.statistics import *
 from modules.invite import *
 
-
-api_token = open('token.txt', 'r').read()
+api_token = open('token_test.txt', 'r').read()
 bot = Bot(token=api_token)
 dp = Dispatcher(bot)
 
@@ -91,6 +90,7 @@ async def teaming():
                     team = [el for el, _ in groupby(team)]
                     if len(team) == count - 1:
                         await buildTeam(team, inSearchData[1])
+                        await teaming()
 
                     else:
                         remainder = count - len(team)
@@ -105,6 +105,7 @@ async def teaming():
                         team = [el for el, _ in groupby(team)]
                         if len(team) == count - 1:
                             await buildTeam(team, inSearchData[1])
+                            await teaming()
 
             remainder = count - len(team)
             if userdata[5] == 'Не важно':
@@ -121,13 +122,10 @@ async def teaming():
                 for i in data:
                     team.append(i[1])
 
-                # if len(data) >= remainder - 1:
-                #     for i in range(remainder - 1):
-                #         team.append(data[i][1])
-
             team = [el for el, _ in groupby(team)]
             if len(team) == count - 1:
                 await buildTeam(team, inSearchData[1])
+                await teaming()
 
             else:
                 remainder = count - len(team)
@@ -141,6 +139,9 @@ async def teaming():
                 team = [el for el, _ in groupby(team)]
                 if len(team) == count - 1:
                     await buildTeam(team, inSearchData[1])
+                    await teaming()
+                else:
+                    invite(inSearchData[1], userdata[6], count, userdata[4], userdata[5], userdata[7], (None, userdata[8])[bool(userdata[8])])
         j += 1
         await asyncio.sleep(1)
 
@@ -203,6 +204,7 @@ async def card(mess, data, distance=None, keyboard=kb_menu):
     else:
         caption = f'Имя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\n📍 {distance[0]} {distance[1]}'
 
+    print(data[3])
     await bot.send_photo(mess.chat.id, photo=data[3], caption=caption, reply_markup=keyboard)
 
 async def reset(mess, user, isAction=True):

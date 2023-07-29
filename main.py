@@ -11,6 +11,9 @@ from modules.keyboards import *
 from itertools import groupby
 from modules.statistics import *
 from modules.invite import *
+from modules.getId import *
+from modules.sortByDistance import *
+from modules.buildTeam import *
 
 api_token = open('token_test.txt', 'r').read()
 bot = Bot(token=api_token)
@@ -30,6 +33,24 @@ applicants = {}
 teams = {}
 
 
+async def findAllowed(user, chat):
+    while True:
+        invites = useSql(f"SELECT * FROM invites WHERE user1='{user}'")
+        if invites:
+            for i in invites:
+                if i[4] == 1:
+                    await bot.send_message(chat, 'Пользователь '+i[2]+' принял')
+                    useSql(f"DELETE FROM invites WHERE id={i[0]}")
+                    useSql(f"INSERT INTO invites (id, user1, user2, showed, allowed) VALUES ({i[0]}, '{i[1]}', '{i[2]}', 1, 2)")
+
+                elif i[4] == -1:
+                    await bot.send_message(chat, 'Пользователь ' + i[2] + ' отклонил')
+                    useSql(f"DELETE FROM invites WHERE id={i[0]}")
+                    useSql(f"INSERT INTO invites (id, user1, user2, showed, allowed) VALUES ({i[0]}, '{i[1]}', '{i[2]}', 1, 2)")
+        else:
+            return
+
+        await asyncio.sleep(1)
 
 async def findInvites(mess, user):
     while True:
@@ -66,34 +87,6 @@ async def send_random_value(callback: types.CallbackQuery):
     useSql(f"INSERT INTO invites (id, user1, user2, showed, allowed) VALUES ({data[0]}, '{data[1]}', '{data[2]}', 1, -1)")
 
 
-async def buildTeam(team, username):
-    new('teams')
-    global teams
-    team.append(username)
-    team = [el for el, _ in groupby(team)]
-    teamId = random.randint(0, 10000)
-    for i in team:
-        teams[i] = teamId
-        useSql(f"DELETE FROM inSearch WHERE username='{i}'")
-    team = json.dumps(team).replace("'", '"')
-    chat = json.dumps([]).replace("'", '"')
-    useSql(f"INSERT INTO teams (id, members, chat) VALUES ('{teamId}', '{team}', '{chat}')")
-    print('Team was created')
-    print(team)
-
-def sortByDistance(username, data):
-    N = len(data)
-    for i in range(N - 1):
-        for j in range(N - i - 1):
-            if getDistance(username, data[j][1])[0] > getDistance(username, data[j + 1][1])[0]:
-                data[j], data[j + 1] = data[j + 1], data[j]
-
-    return data
-
-def getId(mess):
-    if mess.from_user.username:
-        return mess.from_user.username
-    return mess.from_user.id
 
 j = 0
 async def teaming():
@@ -179,6 +172,9 @@ async def teaming():
                 else:
                     if not(useSql(f"SELECT user1 FROM invites WHERE user1='{inSearchData[1]}'")):
                         invite(inSearchData[1], userdata[6], count, userdata[4], userdata[5], userdata[7], (None, userdata[8])[bool(userdata[8])])
+                        loop = asyncio.get_event_loop()
+                        chatId = useSql(f"SELECT chatId FROM inSearch WHERE username='{userdata[1]}'")[0][0]
+                        loop.create_task(findAllowed(userdata[1], chatId))
 
         j += 1
         await asyncio.sleep(1)
@@ -222,16 +218,16 @@ async def findTeam(mess):
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     global action
-    data = useSql(f"SELECT * FROM users WHERE username='{message.from_user.username}'")
+    data = useSql(f"SELECT * FROM users WHERE username='{getId(message)}'")
     if not(data):
         await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе')
         await message.reply('Я вижу, что ты впервые здесь, давай создадим анкету.\nКак тебя зовут?')
-        action[message.from_user.username] = 'setName'
+        action[getId(message)] = 'setName'
     else:
         await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе', reply_markup=kb_menu)
         await findInvites(message, getId(message))
 
-    await reset(message, message.from_user.username, isAction=False)
+    await reset(message, getId(message), isAction=False)
 @dp.message_handler(commands=['statistics'])
 async def statistics(mess: types.Message):
     data = getStatistics()
@@ -335,7 +331,7 @@ async def text(mess: types.Message):
                 if useSql(f"SELECT username FROM inSearch WHERE username='{getId(mess)}'"):
                     useSql(f"DELETE FROM inSearch WHERE username='{getId(mess)}'")
 
-                useSql(f"INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('{getId(mess)}', '{userdata[7]}', '{userdata[6]}', '{userdata[4]}', '{userdata[5]}', '[]', {count}, '{userdata[8]}')")
+                useSql(f"INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates, chatId) VALUES ('{getId(mess)}', '{userdata[7]}', '{userdata[6]}', '{userdata[4]}', '{userdata[5]}', '[]', {count}, '{userdata[8]}', {mess.chat.id})")
                 await findTeam(mess)
 
             elif action[getId(mess)] == 'setName':

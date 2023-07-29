@@ -1,4 +1,4 @@
-from modules.useSql_devmode import *
+from modules.useSql import *
 from main import sortByDistance
 from itertools import groupby
 def invite(inviter, age, count, genre1, genre2, city, coordinates=None):

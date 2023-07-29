@@ -13,7 +13,7 @@ from modules.statistics import *
 from modules.invite import *
 
 api_token = open('token.txt', 'r').read()
-bot = Bot(token=api_token, proxy="http://proxy.server:3128")
+bot = Bot(token=api_token)
 dp = Dispatcher(bot)
 
 action = {}
@@ -182,15 +182,15 @@ async def findTeam(mess):
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     global action
-    data = useSql(f"SELECT * FROM users WHERE username='{message.from_user.username}'")
+    data = useSql(f"SELECT * FROM users WHERE username='{getId(message)}'")
     if not(data):
         await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе')
-        await message.reply('Я вижу, что ты впервые здесь, давай создадим анкету.\nКак тебя зовут?')
-        action[message.from_user.username] = 'setName'
+        await message.reply('Я вижу, что ты впервые здесь, давай создадим анкету.\nКак тебя зовут?', reply_markup=types.ReplyKeyboardRemove())
+        action[getId(message)] = 'setName'
     else:
         await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе', reply_markup=kb_menu)
 
-    await reset(message, message.from_user.username, isAction=False)
+    await reset(message, getId(message), isAction=False)
 @dp.message_handler(commands=['statistics'])
 async def statistics(mess: types.Message):
     data = getStatistics()

@@ -12,7 +12,7 @@ from itertools import groupby
 from modules.statistics import *
 from modules.invite import *
 
-api_token = open('token.txt', 'r').read()
+api_token = open('token_test.txt', 'r').read()
 bot = Bot(token=api_token)
 dp = Dispatcher(bot)
 

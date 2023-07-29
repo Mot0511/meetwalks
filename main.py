@@ -29,26 +29,41 @@ coordinates = {}
 applicants = {}
 teams = {}
 
+
+
 async def findInvites(mess, user):
     while True:
-        invites = useSql(f"SELECT * FROM invites WHERE user2='{user}'")
+        invites = useSql(f"SELECT * FROM invites WHERE user2='{user}' AND showed=0 AND allowed=0 LIMIT 1")
         if invites:
-            for i in invites:
-                print(i[3])
-                if not(i[3]):
-                    data = useSql(f"SELECT * FROM users WHERE username='{i[1]}'")[0]
-                    distance = getDistance(data[1], user)
-                    size = useSql(f"SELECT * FROM inSearch WHERE username='{data[1]}'")[0][7]
-                    if distance:
-                        caption = f'Есть возможность погулять с этим человеком:\n\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}📍 {distance[0]} {distance[1]}'
-                    else:
-                        caption = f'Есть возможность погулять с этим человеком:\n\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}'
+            invite = invites[0]
+            data = useSql(f"SELECT * FROM users WHERE username='{invite[1]}'")[0]
+            distance = getDistance(data[1], user)
+            size = useSql(f"SELECT * FROM inSearch WHERE username='{data[1]}'")[0][7]
+            if distance:
+                caption = f'Есть возможность погулять с этим человеком:\n\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}📍 {distance[0]} {distance[1]}'
+            else:
+                caption = f'Есть возможность погулять с этим человеком:\n\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}'
 
-                    await bot.send_photo(mess.chat.id, photo=data[3], caption=caption)
-                    useSql(f"DELETE FROM invites WHERE user2='{user}'")
-                    useSql(f"INSERT INTO invites (user1, user2, showed, allowed) VALUES ('{i[1]}', '{i[2]}', 1, 0)")
+            await bot.send_photo(mess.chat.id, photo=data[3], caption=caption, reply_markup=ikb_allow)
+            useSql(f"DELETE FROM invites WHERE user2='{user}'")
+            useSql(f"INSERT INTO invites (id, user1, user2, showed, allowed) VALUES ({invite[0]}, '{invite[1]}', '{invite[2]}', 1, 0)")
 
         await asyncio.sleep(1)
+
+
+@dp.callback_query_handler(lambda c: c.data == 'allow')
+async def send_random_value(callback: types.CallbackQuery):
+    username = getId(callback)
+    data = useSql(f"SELECT * FROM invites WHERE user2='{username}' LIMIT 1")[0]
+    useSql(f"DELETE FROM invites WHERE id={data[0]}")
+    useSql(f"INSERT INTO invites (id, user1, user2, showed, allowed) VALUES ({data[0]}, '{data[1]}', '{data[2]}', 1, 1)")
+
+@dp.callback_query_handler(lambda c: c.data == 'reject')
+async def send_random_value(callback: types.CallbackQuery):
+    username = getId(callback)
+    data = useSql(f"SELECT * FROM invites WHERE user2='{username}' LIMIT 1")[0]
+    useSql(f"DELETE FROM invites WHERE id={data[0]}")
+    useSql(f"INSERT INTO invites (id, user1, user2, showed, allowed) VALUES ({data[0]}, '{data[1]}', '{data[2]}', 1, -1)")
 
 
 async def buildTeam(team, username):

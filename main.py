@@ -10,10 +10,10 @@ from geopy.geocoders import Nominatim
 from modules.keyboards import *
 from itertools import groupby
 from modules.statistics import *
-from modules.invite import *
 from modules.getId import *
 from modules.sortByDistance import *
 from modules.buildTeam import *
+from modules.getUsers import *
 
 api_token = open('token_test.txt', 'r').read()
 bot = Bot(token=api_token)
@@ -325,14 +325,15 @@ async def text(mess: types.Message):
                     await reset(mess, getId(mess))
                     return
 
-                await bot.send_message(mess.chat.id, 'Идет поиск...', reply_markup=kb_exit)
                 count = int(mess.text)
-                userdata = useSql(f"SELECT * FROM users WHERE username='{getId(mess)}'")[0]
-                if useSql(f"SELECT username FROM inSearch WHERE username='{getId(mess)}'"):
-                    useSql(f"DELETE FROM inSearch WHERE username='{getId(mess)}'")
+                users = getUsers(getId(mess), count)
 
-                useSql(f"INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates, chatId) VALUES ('{getId(mess)}', '{userdata[7]}', '{userdata[6]}', '{userdata[4]}', '{userdata[5]}', '[]', {count}, '{userdata[8]}', {mess.chat.id})")
-                await findTeam(mess)
+                if users:
+                    await bot.send_message(mess.chat.id, 'Вам подходят эти люди:')
+                    for i in users:
+                        await getUser(mess, i, getId(mess))
+                else:
+                    await bot.send_message(mess.chat.id, 'Пока нет подходящих для вас людей')
 
             elif action[getId(mess)] == 'setName':
                 global name
@@ -412,5 +413,5 @@ if __name__ == '__main__':
     #     useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('l4', 'Киров', 14, 'Женский', 'Мужской', '[]', 2, '[56.084518, 56.680753]')")
 
     loop = asyncio.get_event_loop()
-    loop.create_task(teaming())
+    # loop.create_task(teaming())
     executor.start_polling(dp, skip_updates=True)

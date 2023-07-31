@@ -1,3 +1,4 @@
+from modules.getDistance import *
 def sortByDistance(username, data):
     N = len(data)
     for i in range(N - 1):

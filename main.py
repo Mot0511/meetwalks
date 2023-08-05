@@ -30,9 +30,8 @@ age = {}
 city = {}
 coordinates = {}
 
-applicants = {}
+owners = {}
 counts = {}
-
 teams = {}
 teamIds = {}
 
@@ -75,6 +74,7 @@ async def findInvites(mess, user):
                     caption = f'\n\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}'
 
                 await bot.send_photo(mess.chat.id, photo=data[3], caption=caption, reply_markup=kb_allow)
+                owners[getId(mess)] = inviter
                 useSql(f"UPDATE users SET invites='[]' WHERE username='{user}'")
 
         await asyncio.sleep(1)
@@ -188,25 +188,27 @@ async def teaming():
 
 async def findTeam(mess):
     while True:
-        if useSql(f"SELECT * FROM inSearch WHERE username='{getId(mess)}'"):
-            await asyncio.sleep(2)
-            if getId(mess) in teams:
+        if getId(mess) in teamIds:
+            owner = owners[getId(mess)]
+            print(getId(mess))
+            if useSql(f"SELECT ready FROM teams WHERE owner='{owner}'")[0][0] == 1:
                 await bot.send_message(mess.chat.id, 'Компания сформирована:', reply_markup=kb_leave)
-                teamId = teams[getId(mess)]
+                teamId = teamIds[owner]
                 members = json.loads(useSql(f"SELECT members FROM teams WHERE id={teamId}")[0][0])
                 members.remove(getId(mess))
                 for member in members:
-                    await getUser(mess, member, getId(mess))
+                    await getUser(mess, member, getId(mess), keyboard=kb_leave)
 
                 global action
                 action[getId(mess)] = 'chat'
                 await bot.send_message(mess.chat.id, 'Общий чат:', reply_markup=kb_leave)
-                while getId(mess) in teams:
-                    username = useSql(f"SELECT * FROM users WHERE username='{getId(mess)}'")[0][2]
+                while getId(mess) in teamIds:
+
+                    username = getId(mess)
                     oldChat = json.loads(useSql(f"SELECT chat FROM teams WHERE id={teamId}")[0][0])
                     await asyncio.sleep(0.5)
                     newChat = json.loads(useSql(f"SELECT chat FROM teams WHERE id={teamId}")[0][0])
-                    if not(oldChat == newChat):
+                    if not (oldChat == newChat):
                         for i in oldChat:
                             if i in newChat:
                                 newChat.remove(i)
@@ -217,11 +219,10 @@ async def findTeam(mess):
 
                         for i in newChat:
                             await bot.send_message(mess.chat.id, f'{i[0]}: {i[1]}', reply_markup=kb_leave)
-                break
         else:
-            break
-    return
+            return
 
+        await asyncio.sleep(2)
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     global action
@@ -251,20 +252,32 @@ async def card(mess, data, distance=None, keyboard=kb_menu):
     await bot.send_photo(mess.chat.id, photo=data[3], caption=caption, reply_markup=keyboard)
 
 async def reset(mess, user, isAction=True):
+    global owners
+    global action
+    if getId(mess) in owners:
+        del owners[getId(mess)]
+    if getId(mess) in teams:
+        del teams[getId(mess)]
+    if getId(mess) in teamIds:
+        del teamIds[getId(mess)]
+    if getId(mess) in counts:
+        del counts[getId(mess)]
+
+
+    action[getId(mess)] = ''
+
     useSql(f"DELETE FROM inSearch WHERE username='{user}'")
     useSql(f"DELETE FROM invites WHERE user1='{user}'")
+    if user in owners:
+        useSql(f"DELETE FROM teams WHERE owner='{owners[getId(mess)]}'")
+    else:
+        useSql(f"DELETE FROM teams WHERE owner='{user}'")
+
     if user in teams:
         useSql(f"DELETE FROM teams WHERE id='{teams[user]}'")
 
-    global applicants
-    if getId(mess) in applicants:
-        del applicants[getId(mess)]
-    if getId(mess) in teams:
-        del teams[getId(mess)]
 
-    if isAction:
-        global action
-        action[getId(mess)] = ''
+
 
 async def getUser(mess, username, username2=None, vote=False, keyboard=None):
     data = useSql(f"SELECT * FROM users WHERE username='{username}'")[0]
@@ -324,15 +337,31 @@ async def text(mess: types.Message):
 
     elif mess.text == 'пошел нахер':
         await mess.reply('сам такой', reply_markup=kb_menu)
+        await reset(mess, getId(mess))
 
-    elif mess.text == '✔':
-        allowAppl[getId(mess)].append(applicants[getId(mess)])
+    elif mess.text == 'Принять':
+        owner = owners[getId(mess)]
+        teamData = useSql(f"SELECT id, members, allowed FROM teams WHERE owner='{owner}'")[0]
+        teamId = teamData[0]
+        allowed = json.loads(teamData[2])
+        members = json.loads(teamData[1])
+        allowed.append(getId(mess))
+        useSql(f"UPDATE teams SET allowed='{json.dumps(allowed)}'")
+        teamIds[getId(mess)] = teamId
+        if len(members) - 1 == len(allowed):
+            useSql(f"UPDATE teams SET ready=1 WHERE owner='{owner}'")
+        else:
+            await bot.send_message(mess.chat.id, 'Ожидаем одобрения членов компании...')
 
-    elif mess.text == '✖':
-        allowAppl[getId(mess)].append(applicants[getId(mess)])
+        await findTeam(mess)
 
     elif mess.text == 'Поиск заново':
         await find(mess)
+
+    elif mess.text == 'Отклонить':
+        useSql(f"UPDATE teams SET isReject=1 WHERE owner='{owners[getId(mess)]}'")
+        await bot.send_message(mess.chat.id, 'Вы отклонили компанию', reply_markup=kb_menu)
+        await reset(mess, getId(mess))
 
     elif mess.text == 'Одобрить компанию':
         for i in teams[getId(mess)]:
@@ -346,14 +375,16 @@ async def text(mess: types.Message):
         team.append(getId(mess))
         useSql(f"INSERT INTO teams (id, members, chat, allowed, owner, ready, count) VALUES ({teamId}, '{json.dumps(team)}', '[]', '[]', '{getId(mess)}', 0, {counts[getId(mess)]})")
         teamIds[getId(mess)] = teamId
+        owners[getId(mess)] = getId(mess)
         await bot.send_message(mess.chat.id, 'Ожидаем одобрения членов компании...')
+        await findTeam(mess)
 
     else:
         if getId(mess) in action:
             if action[getId(mess)] == 'chat':
-                teamId = teams[getId(mess)]
+                teamId = teamIds[getId(mess)]
                 team = useSql(f"SELECT * FROM teams WHERE id='{teamId}'")[0]
-                username = useSql(f"SELECT * FROM users WHERE username='{getId(mess)}'")[0][2]
+                username = getId(mess)
                 chat = json.loads(team[2])
                 chat.append([username, mess.text])
                 chat = json.dumps(chat)

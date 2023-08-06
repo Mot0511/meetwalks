@@ -96,7 +96,6 @@ async def findTeam(mess):
                 action[getId(mess)] = 'chat'
                 await bot.send_message(mess.chat.id, 'Общий чат:', reply_markup=kb_leave)
                 while getId(mess) in teamIds:
-
                     username = getId(mess)
                     oldChat = json.loads(useSql(f"SELECT chat FROM teams WHERE id={teamId}")[0][0])
                     await asyncio.sleep(0.5)

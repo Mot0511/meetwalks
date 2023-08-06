@@ -46,12 +46,11 @@ async def start(message: types.Message):
         await message.reply('Я вижу, что ты впервые здесь, давай создадим анкету.\nКак тебя зовут?', reply_markup=types.ReplyKeyboardRemove())
 
         action[getId(message)] = 'setName'
-        print(action)
     else:
         await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе', reply_markup=kb_menu)
         if not(getId(message) in isFI):
             loop = asyncio.get_event_loop()
-            loop.create_task(findInvites(mess, getId(mess)))
+            loop.create_task(findInvites(message, getId(mess)))
             isFI[getId(message)] = True
 
         await reset(message, getId(message), isAction=False)
@@ -87,7 +86,6 @@ async def findInvites(mess, user):
             await bot.send_message(mess.chat.id, 'Есть возможность погулять с этими людьми:')
             users.remove(user)
             for i in users:
-                print(users)
                 data = useSql(f"SELECT * FROM users WHERE username='{i}'")[0]
                 distance = getDistance(data[1], user)
                 size = counts[inviter]
@@ -232,7 +230,6 @@ async def text(mess: types.Message):
     global genre
     global messTool
     global username
-    print(action)
     username = getId(mess)
     if mess.text == 'Искать людей':
         userdata = useSql(f"SELECT * FROM users WHERE username='{getId(mess)}'")[0]

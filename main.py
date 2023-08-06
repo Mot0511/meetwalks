@@ -35,6 +35,26 @@ counts = {}
 teams = {}
 teamIds = {}
 
+isFI = {}
+
+@dp.message_handler(commands=['start', 's'])
+async def start(message: types.Message):
+    global action
+    data = useSql(f"SELECT * FROM users WHERE username='{getId(message)}'")
+    if not(data):
+        await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе')
+        await message.reply('Я вижу, что ты впервые здесь, давай создадим анкету.\nКак тебя зовут?', reply_markup=types.ReplyKeyboardRemove())
+
+        action[getId(message)] = 'setName'
+        print(action)
+    else:
+        await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе', reply_markup=kb_menu)
+        if not(getId(message) in isFI):
+            loop = asyncio.get_event_loop()
+            loop.create_task(findInvites(mess, getId(mess)))
+            isFI[getId(message)] = True
+
+        await reset(message, getId(message), isAction=False)
 
 async def findAllowed(user, chat):
     while True:
@@ -57,6 +77,9 @@ async def findAllowed(user, chat):
 
 async def findInvites(mess, user):
     while True:
+        if not(useSql(f"SELECT username FROM users WHERE username='{user}'")):
+            await asyncio.sleep(1)
+            continue
         invites = json.loads(useSql(f"SELECT invites FROM users WHERE username='{user}'")[0][0])
         if invites:
             inviter = invites[0]
@@ -69,7 +92,7 @@ async def findInvites(mess, user):
                 distance = getDistance(data[1], user)
                 size = counts[inviter]
                 if distance:
-                    caption = f'\n\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}📍 {distance[0]} {distance[1]}'
+                    caption = f'\n\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}\n📍 {distance[0]} {distance[1]}'
                 else:
                     caption = f'\n\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}'
 
@@ -83,14 +106,30 @@ async def findTeam(mess):
     while True:
         if getId(mess) in teamIds:
             owner = owners[getId(mess)]
-            print(getId(mess))
-            if useSql(f"SELECT ready FROM teams WHERE owner='{owner}'")[0][0] == 1:
-                await bot.send_message(mess.chat.id, 'Компания сформирована:', reply_markup=kb_leave)
+            teamData = useSql(f"SELECT members, allowed, rejects FROM teams WHERE owner='{owner}'")[0]
+            allowed = json.loads(teamData[1])
+            members = json.loads(teamData[0])
+            rejects = json.loads(teamData[2])
+            rejUsers = ''
+            if len(members) - 1 == len(allowed) + len(rejects):
+                if len(members) - 1 == len(rejects):
+                    await bot.send_message(mess.chat.id, 'Никто не принял заявку в компанию(', reply_markup=kb_menu)
+                    useSql(f"DELETE FROM teams WHERE owner='{owner}'")
+                    return
+
+                if rejects:
+                    rejUsers = ' (кроме: '
+                    for i in rejects:
+                        rejUsers += i+','
+                    rejUsers += ')'
+
+                await bot.send_message(mess.chat.id, f'Компания сформирована{("", rejUsers)[bool(rejUsers)]}:', reply_markup=kb_leave)
                 teamId = teamIds[owner]
                 members = json.loads(useSql(f"SELECT members FROM teams WHERE id={teamId}")[0][0])
                 members.remove(getId(mess))
                 for member in members:
-                    await getUser(mess, member, getId(mess), keyboard=kb_leave)
+                    if not(member in rejects):
+                        await getUser(mess, member, getId(mess), keyboard=kb_leave)
 
                 global action
                 action[getId(mess)] = 'chat'
@@ -98,8 +137,22 @@ async def findTeam(mess):
                 while getId(mess) in teamIds:
                     username = getId(mess)
                     oldChat = json.loads(useSql(f"SELECT chat FROM teams WHERE id={teamId}")[0][0])
+                    oldRejects = json.loads(useSql(f"SELECT rejects FROM teams WHERE id={teamId}")[0][0])
                     await asyncio.sleep(0.5)
                     newChat = json.loads(useSql(f"SELECT chat FROM teams WHERE id={teamId}")[0][0])
+                    newRejects = json.loads(useSql(f"SELECT rejects FROM teams WHERE id={teamId}")[0][0])
+                    if not (oldRejects == newRejects):
+                        for i in oldRejects:
+                            if i in newRejects:
+                                newRejects.remove(i)
+
+                        for i in newRejects:
+                            if i == username:
+                                newRejects.remove(i)
+
+                        for i in newRejects:
+                            await bot.send_message(mess.chat.id, f'_{i} покинул(а) компанию_', reply_markup=kb_leave, parse_mode="Markdown")
+
                     if not (oldChat == newChat):
                         for i in oldChat:
                             if i in newChat:
@@ -115,20 +168,7 @@ async def findTeam(mess):
             return
 
         await asyncio.sleep(2)
-@dp.message_handler(commands=['start'])
-async def start(message: types.Message):
-    global action
-    data = useSql(f"SELECT * FROM users WHERE username='{getId(message)}'")
-    if not(data):
-        await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе')
-        await message.reply('Я вижу, что ты впервые здесь, давай создадим анкету.\nКак тебя зовут?', reply_markup=types.ReplyKeyboardRemove())
 
-        action[getId(message)] = 'setName'
-    else:
-        await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе', reply_markup=kb_menu)
-        await findInvites(message, getId(message))
-
-    await reset(message, getId(message), isAction=False)
 @dp.message_handler(commands=['statistics'])
 async def statistics(mess: types.Message):
     data = getStatistics()
@@ -136,10 +176,9 @@ async def statistics(mess: types.Message):
 
 async def card(mess, data, distance=None, keyboard=kb_menu):
     if distance == None:
-        caption = f'Имя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\n'
+        caption = f'@{data[1]}\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\n'
     else:
-        caption = f'Имя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\n📍 {distance[0]} {distance[1]}'
-
+        caption = f'@{data[1]}\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\n📍 {distance[0]} {distance[1]}'
 
     await bot.send_photo(mess.chat.id, photo=data[3], caption=caption, reply_markup=keyboard)
 
@@ -157,19 +196,6 @@ async def reset(mess, user, isAction=True):
 
 
     action[getId(mess)] = ''
-
-    useSql(f"DELETE FROM inSearch WHERE username='{user}'")
-    useSql(f"DELETE FROM invites WHERE user1='{user}'")
-    if user in owners:
-        useSql(f"DELETE FROM teams WHERE owner='{owners[getId(mess)]}'")
-    else:
-        useSql(f"DELETE FROM teams WHERE owner='{user}'")
-
-    if user in teams:
-        useSql(f"DELETE FROM teams WHERE id='{teams[user]}'")
-
-
-
 
 async def getUser(mess, username, username2=None, vote=False, keyboard=None):
     data = useSql(f"SELECT * FROM users WHERE username='{username}'")[0]
@@ -197,12 +223,16 @@ async def find(mess):
 
 @dp.message_handler()
 async def text(mess: types.Message):
-    loop = asyncio.get_event_loop()
-    loop.create_task(findInvites(mess, getId(mess)))
+    if not(getId(mess) in isFI):
+        loop = asyncio.get_event_loop()
+        loop.create_task(findInvites(mess, getId(mess)))
+        isFI[getId(mess)] = True
+
     global action
     global genre
     global messTool
     global username
+    print(action)
     username = getId(mess)
     if mess.text == 'Искать людей':
         userdata = useSql(f"SELECT * FROM users WHERE username='{getId(mess)}'")[0]
@@ -224,34 +254,39 @@ async def text(mess: types.Message):
         action[getId(mess)] = 'setName'
 
     elif mess.text == 'В главное меню' or mess.text == 'Покинуть компанию':
-        await mess.reply('Главное меню:', reply_markup=kb_menu)
-        await reset(mess, getId(mess))
+        if mess.text == 'Покинуть компанию':
+            data = useSql(f"SELECT rejects, count FROM teams WHERE owner='{owners[getId(mess)]}'")[0]
+            rejects = json.loads(data[0])
+            count = data[1]
+            rejects.append(getId(mess))
+            useSql(f"UPDATE teams SET rejects='{json.dumps(rejects)}' WHERE owner='{owners[getId(mess)]}'")
+            if len(rejects) == count:
+                useSql(f"DELETE FROM teams WHERE owner='{owners[getId(mess)]}'")
 
-    elif mess.text == 'пошел нахер':
-        await mess.reply('сам такой', reply_markup=kb_menu)
+
+        await mess.reply('Главное меню:', reply_markup=kb_menu)
         await reset(mess, getId(mess))
 
     elif mess.text == 'Принять':
         owner = owners[getId(mess)]
-        teamData = useSql(f"SELECT id, members, allowed FROM teams WHERE owner='{owner}'")[0]
+        teamData = useSql(f"SELECT id, allowed FROM teams WHERE owner='{owner}'")[0]
         teamId = teamData[0]
-        allowed = json.loads(teamData[2])
-        members = json.loads(teamData[1])
+        allowed = json.loads(teamData[1])
         allowed.append(getId(mess))
         useSql(f"UPDATE teams SET allowed='{json.dumps(allowed)}'")
         teamIds[getId(mess)] = teamId
-        if len(members) - 1 == len(allowed):
-            useSql(f"UPDATE teams SET ready=1 WHERE owner='{owner}'")
-        else:
-            await bot.send_message(mess.chat.id, 'Ожидаем одобрения членов компании...')
 
+        await bot.send_message(mess.chat.id, 'Ожидаем одобрения членов компании...', reply_markup=kb_leave)
         await findTeam(mess)
 
     elif mess.text == 'Поиск заново':
         await find(mess)
 
     elif mess.text == 'Отклонить':
-        useSql(f"UPDATE teams SET isReject=1 WHERE owner='{owners[getId(mess)]}'")
+        rejects = json.loads(useSql(f"SELECT rejects FROM teams WHERE owner='{owners[getId(mess)]}'")[0][0])
+        rejects.append(getId(mess))
+        useSql(f"UPDATE teams SET rejects='{json.dumps(rejects)}' WHERE owner='{owners[getId(mess)]}'")
+
         await bot.send_message(mess.chat.id, 'Вы отклонили компанию', reply_markup=kb_menu)
         await reset(mess, getId(mess))
 
@@ -265,10 +300,10 @@ async def text(mess: types.Message):
         teamId = random.randint(0, 1000)
         team = teams[getId(mess)]
         team.append(getId(mess))
-        useSql(f"INSERT INTO teams (id, members, chat, allowed, owner, ready, count) VALUES ({teamId}, '{json.dumps(team)}', '[]', '[]', '{getId(mess)}', 0, {counts[getId(mess)]})")
+        useSql(f"INSERT INTO teams (id, members, chat, allowed, owner, count, rejects) VALUES ({teamId}, '{json.dumps(team)}', '[]', '[]', '{getId(mess)}', {counts[getId(mess)]}, '[]')")
         teamIds[getId(mess)] = teamId
         owners[getId(mess)] = getId(mess)
-        await bot.send_message(mess.chat.id, 'Ожидаем одобрения членов компании...')
+        await bot.send_message(mess.chat.id, 'Ожидаем одобрения членов компании...', reply_markup=kb_leave)
         await findTeam(mess)
 
     else:
@@ -280,8 +315,7 @@ async def text(mess: types.Message):
                 chat = json.loads(team[2])
                 chat.append([username, mess.text])
                 chat = json.dumps(chat)
-                useSql(f"DELETE FROM teams WHERE id='{teamId}'")
-                useSql(f"INSERT INTO teams (id, members, chat) VALUES ({teamId}, '{team[1]}', '{chat}')")
+                useSql(f"UPDATE teams SET chat='{chat}' WHERE id={teamId}")
 
             elif action[getId(mess)] == 'count':
                 new('search')
@@ -295,6 +329,7 @@ async def text(mess: types.Message):
                 await find(mess)
 
             elif action[getId(mess)] == 'setName':
+
                 global name
                 name[getId(mess)] = mess.text
                 await mess.reply('Какой у тебя пол', reply_markup=kb_genre)
@@ -330,7 +365,10 @@ async def text(mess: types.Message):
                     useSql(f"INSERT INTO users (username, name, photo, genre, anotherGenre, age, city, coordinates) VALUES ('{getId(mess)}', '{name[getId(mess)]}', '{photo[getId(mess)]}', '{genre[getId(mess)]}', '{mess.text}', '{age[getId(mess)]}', '{city[getId(mess)]}', '[]')")
 
                 await mess.reply('Анкета готова', reply_markup=kb_menu)
-                await findInvites(mess, getId(mess))
+                if not(getId(mess) in isFI):
+                    loop = asyncio.get_event_loop()
+                    loop.create_task(findInvites(mess, getId(mess)))
+                    isFI[getId(mess)] = True
                 isEditing[getId(mess)] = False
                 action[getId(mess)] = 0
 

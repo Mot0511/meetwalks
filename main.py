@@ -395,16 +395,16 @@ async def location(mess: types.Message):
 
 
 if __name__ == '__main__':
-    if not(useSql("SELECT * FROM users WHERE username='Mot05112'")):
-        useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('Mot05112', 'Пользователь7', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Мужской', 'Мужской', '[56.084518, 56.680753]', '[]')")
-    if not(useSql("SELECT * FROM users WHERE username='l1'")):
-        useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l1', 'Пользоатель3', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Мужской', 'Женский', '[56.084518, 56.680753]', '[]')")
-    if not(useSql("SELECT * FROM users WHERE username='l2'")):
-        useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l2', 'Пользоатель4', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Женский', 'Не важно', '[]', '[]')")
-    if not(useSql("SELECT * FROM users WHERE username='l3'")):
-        useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l3', 'Пользоатель5', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Женский', 'Женский', '[]', '[]')")
-    if not(useSql("SELECT * FROM users WHERE username='l4'")):
-        useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l4', 'Пользоатель6', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Женский', 'Мужской', '[56.084518, 56.680753]', '[]')")
+    # if not(useSql("SELECT * FROM users WHERE username='Mot05112'")):
+    #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('Mot05112', 'Пользователь7', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Мужской', 'Мужской', '[56.084518, 56.680753]', '[]')")
+    # if not(useSql("SELECT * FROM users WHERE username='l1'")):
+    #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l1', 'Пользоатель3', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Мужской', 'Женский', '[56.084518, 56.680753]', '[]')")
+    # if not(useSql("SELECT * FROM users WHERE username='l2'")):
+    #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l2', 'Пользоатель4', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Женский', 'Не важно', '[]', '[]')")
+    # if not(useSql("SELECT * FROM users WHERE username='l3'")):
+    #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l3', 'Пользоатель5', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Женский', 'Женский', '[]', '[]')")
+    # if not(useSql("SELECT * FROM users WHERE username='l4'")):
+    #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l4', 'Пользоатель6', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Женский', 'Мужской', '[56.084518, 56.680753]', '[]')")
 
     loop = asyncio.get_event_loop()
     # loop.create_task(teaming())

@@ -46,12 +46,11 @@ async def start(message: types.Message):
         await message.reply('Я вижу, что ты впервые здесь, давай создадим анкету.\nКак тебя зовут?', reply_markup=types.ReplyKeyboardRemove())
 
         action[getId(message)] = 'setName'
-        print(action)
     else:
         await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе', reply_markup=kb_menu)
         if not(getId(message) in isFI):
             loop = asyncio.get_event_loop()
-            loop.create_task(findInvites(mess, getId(mess)))
+            loop.create_task(findInvites(message, getId(mess)))
             isFI[getId(message)] = True
 
         await reset(message, getId(message), isAction=False)
@@ -87,7 +86,6 @@ async def findInvites(mess, user):
             await bot.send_message(mess.chat.id, 'Есть возможность погулять с этими людьми:')
             users.remove(user)
             for i in users:
-                print(users)
                 data = useSql(f"SELECT * FROM users WHERE username='{i}'")[0]
                 distance = getDistance(data[1], user)
                 size = counts[inviter]
@@ -134,7 +132,6 @@ async def findTeam(mess):
                 global action
                 action[getId(mess)] = 'chat'
                 await bot.send_message(mess.chat.id, 'Общий чат:', reply_markup=kb_leave)
-
                 while getId(mess) in teamIds:
                     username = getId(mess)
                     oldChat = json.loads(useSql(f"SELECT chat FROM teams WHERE id={teamId}")[0][0])
@@ -165,12 +162,10 @@ async def findTeam(mess):
 
                         for i in newChat:
                             await bot.send_message(mess.chat.id, f'{i[0]}: {i[1]}', reply_markup=kb_leave)
-
         else:
             return
 
         await asyncio.sleep(2)
-
 
 @dp.message_handler(commands=['statistics'])
 async def statistics(mess: types.Message):
@@ -179,7 +174,6 @@ async def statistics(mess: types.Message):
 
 async def card(mess, data, distance=None, keyboard=kb_menu):
     if distance == None:
-
         caption = f'@{data[1]}\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\n'
     else:
         caption = f'@{data[1]}\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\n📍 {distance[0]} {distance[1]}'
@@ -236,7 +230,6 @@ async def text(mess: types.Message):
     global genre
     global messTool
     global username
-    print(action)
     username = getId(mess)
     if mess.text == 'Искать людей':
         userdata = useSql(f"SELECT * FROM users WHERE username='{getId(mess)}'")[0]
@@ -328,7 +321,6 @@ async def text(mess: types.Message):
                     await reset(mess, getId(mess))
                     return
 
-
                 count = int(mess.text)
                 counts[getId(mess)] = count
                 await find(mess)
@@ -370,7 +362,6 @@ async def text(mess: types.Message):
                     useSql(f"INSERT INTO users (username, name, photo, genre, anotherGenre, age, city, coordinates) VALUES ('{getId(mess)}', '{name[getId(mess)]}', '{photo[getId(mess)]}', '{genre[getId(mess)]}', '{mess.text}', '{age[getId(mess)]}', '{city[getId(mess)]}', '[]')")
 
                 await mess.reply('Анкета готова', reply_markup=kb_menu)
-
                 if not(getId(mess) in isFI):
                     loop = asyncio.get_event_loop()
                     loop.create_task(findInvites(mess, getId(mess)))
@@ -404,18 +395,17 @@ async def location(mess: types.Message):
 
 
 if __name__ == '__main__':
-    # if not(useSql("SELECT * FROM inSearch WHERE username='Mot05112'")):
-    #     useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('Mot05112', 'Киров', 14, 'Мужской', 'Мужской', '[]', 3, '[56.084518, 56.680753]')")
-    # if not(useSql("SELECT * FROM inSearch WHERE username='l1'")):
-    #     useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('l1', 'Киров', 14, 'Мужской', 'Женский', '[]', 2, '[56.084518, 56.680753]')")
-    # if not(useSql("SELECT * FROM inSearch WHERE username='l2'")):
-    #     useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('l2', 'Киров', 14, 'Женский', 'Не важно', '[]', 3, '[]')")
-    # if not(useSql("SELECT * FROM inSearch WHERE username='l3'")):
-    #     useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('l3', 'Киров', 14, 'Женский', 'Женский', '[]', 3, '[]')")
-    # if not(useSql("SELECT * FROM inSearch WHERE username='l4'")):
-    #     useSql("INSERT INTO inSearch (username, city, age, genre, anotherGenre, approved, count, coordinates) VALUES ('l4', 'Киров', 14, 'Женский', 'Мужской', '[]', 2, '[56.084518, 56.680753]')")
+    # if not(useSql("SELECT * FROM users WHERE username='Mot05112'")):
+    #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('Mot05112', 'Пользователь7', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Мужской', 'Мужской', '[56.084518, 56.680753]', '[]')")
+    # if not(useSql("SELECT * FROM users WHERE username='l1'")):
+    #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l1', 'Пользоатель3', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Мужской', 'Женский', '[56.084518, 56.680753]', '[]')")
+    # if not(useSql("SELECT * FROM users WHERE username='l2'")):
+    #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l2', 'Пользоатель4', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Женский', 'Не важно', '[]', '[]')")
+    # if not(useSql("SELECT * FROM users WHERE username='l3'")):
+    #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l3', 'Пользоатель5', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Женский', 'Женский', '[]', '[]')")
+    # if not(useSql("SELECT * FROM users WHERE username='l4'")):
+    #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l4', 'Пользоатель6', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Женский', 'Мужской', '[56.084518, 56.680753]', '[]')")
 
     loop = asyncio.get_event_loop()
     # loop.create_task(teaming())
-
     executor.start_polling(dp, skip_updates=True)

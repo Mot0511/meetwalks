@@ -10,3 +10,5 @@ kb_exit = ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton('В гл�
 kb_leave = ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton('Покинуть компанию'))
 kb_sendLocation = ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton('Отправить геолокацию', request_location=True))
 kb_count = ReplyKeyboardMarkup(resize_keyboard=True).row(KeyboardButton('2'), KeyboardButton('3'), KeyboardButton('4'), KeyboardButton('5')).add(KeyboardButton('В главное меню'))
+kb_allow_team = ReplyKeyboardMarkup(resize_keyboard=True).row(KeyboardButton('Одобрить компанию'), KeyboardButton('Поиск заново')).add(KeyboardButton('В главное меню'))
+kb_allow = ReplyKeyboardMarkup(resize_keyboard=True).row(KeyboardButton('Принять'), KeyboardButton('Отклонить'))

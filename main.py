@@ -56,25 +56,9 @@ async def start(message: types.Message):
 
         await reset(message, getId(message), isAction=False)
 
-async def findAllowed(user, chat):
-    while True:
-        invites = useSql(f"SELECT * FROM invites WHERE user1='{user}'")
-        if invites:
-            for i in invites:
-                if i[4] == 1:
-                    await bot.send_message(chat, 'Пользователь '+i[2]+' принял')
-                    useSql(f"DELETE FROM invites WHERE id={i[0]}")
-                    useSql(f"INSERT INTO invites (id, user1, user2, showed, allowed) VALUES ({i[0]}, '{i[1]}', '{i[2]}', 1, 2)")
-
-                elif i[4] == -1:
-                    await bot.send_message(chat, 'Пользователь ' + i[2] + ' отклонил')
-                    useSql(f"DELETE FROM invites WHERE id={i[0]}")
-                    useSql(f"INSERT INTO invites (id, user1, user2, showed, allowed) VALUES ({i[0]}, '{i[1]}', '{i[2]}', 1, 2)")
-        else:
-            return
-
-        await asyncio.sleep(1)
-
+def getName(user):
+    name = useSql(f"SELECT name FROM users WHERE username='{user}'")[0][0]
+    return name
 async def findInvites(mess, user):
     while True:
         if not(useSql(f"SELECT username FROM users WHERE username='{user}'")):
@@ -91,9 +75,9 @@ async def findInvites(mess, user):
                 distance = getDistance(data[1], user)
                 size = counts[inviter]
                 if distance:
-                    caption = f'\n\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}\n📍 {distance[0]} {distance[1]}'
+                    caption = f'\n\n@{data[1]}\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}\n📍 {distance[0]} {distance[1]}'
                 else:
-                    caption = f'\n\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}'
+                    caption = f'\n\n@{data[1]}\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}'
 
                 await bot.send_photo(mess.chat.id, photo=data[3], caption=caption, reply_markup=kb_allow)
                 owners[getId(mess)] = inviter
@@ -119,7 +103,8 @@ async def findTeam(mess):
                 if rejects:
                     rejUsers = ' (кроме: '
                     for i in rejects:
-                        rejUsers += i+','
+                        name = getName(i)
+                        rejUsers += name+','
                     rejUsers += ')'
 
                 await bot.send_message(mess.chat.id, f'Компания сформирована{("", rejUsers)[bool(rejUsers)]}:', reply_markup=kb_leave)
@@ -150,7 +135,8 @@ async def findTeam(mess):
                                 newRejects.remove(i)
 
                         for i in newRejects:
-                            await bot.send_message(mess.chat.id, f'_{i} покинул(а) компанию_', reply_markup=kb_leave, parse_mode="Markdown")
+                            name = getName(i)
+                            await bot.send_message(mess.chat.id, f'_{name} покинул(а) компанию_', reply_markup=kb_leave, parse_mode="Markdown")
 
                     if not (oldChat == newChat):
                         for i in oldChat:
@@ -162,7 +148,8 @@ async def findTeam(mess):
                                 newChat.remove(i)
 
                         for i in newChat:
-                            await bot.send_message(mess.chat.id, f'{i[0]}: {i[1]}', reply_markup=kb_leave)
+                            name = getName(i[0])
+                            await bot.send_message(mess.chat.id, f'{name}: {i[1]}', reply_markup=kb_leave)
         else:
             return
 

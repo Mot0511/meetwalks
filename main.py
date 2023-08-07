@@ -34,6 +34,7 @@ owners = {}
 counts = {}
 teams = {}
 teamIds = {}
+rejAppl = {}
 
 isFI = {}
 
@@ -191,6 +192,8 @@ async def reset(mess, user, isAction=True):
         del teamIds[getId(mess)]
     if getId(mess) in counts:
         del counts[getId(mess)]
+    if getId(mess) in rejAppl:
+        del rejAppl[getId(mess)]
 
 
     action[getId(mess)] = ''
@@ -209,7 +212,10 @@ async def getUser(mess, username, username2=None, vote=False, keyboard=None):
 
 async def find(mess):
     username = getId(mess)
-    users = getUsers(username, counts[username])
+    if getId(mess) in rejAppl:
+        users = getUsers(username, counts[username], rejAppl[getId(mess)])
+    else:
+        users = getUsers(username, counts[username])
 
     if users:
         await bot.send_message(mess.chat.id, 'Вам подходят эти люди:')
@@ -277,6 +283,11 @@ async def text(mess: types.Message):
         await findTeam(mess)
 
     elif mess.text == 'Поиск заново':
+        if getId(mess) in rejAppl:
+            rejAppl[getId(mess)].append(teams[getId(mess)])
+        else:
+            rejAppl[getId(mess)] = [teams[getId(mess)]]
+
         await find(mess)
 
     elif mess.text == 'Отклонить':

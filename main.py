@@ -51,8 +51,11 @@ async def start(message: types.Message):
         await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе', reply_markup=kb_menu)
         if not(getId(message) in isFI):
             loop = asyncio.get_event_loop()
-            loop.create_task(findInvites(message, getId(mess)))
+            loop.create_task(findInvites(message, getId(message)))
             isFI[getId(message)] = True
+
+        if useSql(f"SELECT chatID FROM users WHERE username='{getId(message)}'")[0][0] == None:
+            useSql(f"UPDATE users SET chatId={message.chat.id} WHERE username='{getId(message)}'")
 
         await reset(message, getId(message), isAction=False)
 
@@ -214,6 +217,9 @@ async def find(mess):
 
 @dp.message_handler()
 async def text(mess: types.Message):
+    if useSql(f"SELECT chatID FROM users WHERE username='{getId(message)}'")[0][0] == None:
+        useSql(f"UPDATE users SET chatId={message.chat.id} WHERE username='{getId(message)}'")
+
     if not(getId(mess) in isFI):
         loop = asyncio.get_event_loop()
         loop.create_task(findInvites(mess, getId(mess)))
@@ -364,6 +370,10 @@ async def text(mess: types.Message):
                     loop = asyncio.get_event_loop()
                     loop.create_task(findInvites(mess, getId(mess)))
                     isFI[getId(mess)] = True
+
+                if useSql(f"SELECT chatID FROM users WHERE username='{getId(message)}'")[0][0] == None:
+                    useSql(f"UPDATE users SET chatId={message.chat.id} WHERE username='{getId(message)}'")
+
                 isEditing[getId(mess)] = False
                 action[getId(mess)] = 0
 
@@ -405,5 +415,6 @@ if __name__ == '__main__':
     #     useSql("INSERT INTO users (username, name, photo, city, age, genre, anotherGenre, coordinates, invites) VALUES ('l4', 'Пользоатель6', 'AgACAgIAAxkBAANFZMD_2JbJdUG2Pfj5078xutZgDtsAAoTLMRtTywlKYfsUcoHV56IBAAMCAANtAAMvBA', 'Киров', 14, 'Женский', 'Мужской', '[56.084518, 56.680753]', '[]')")
 
     loop = asyncio.get_event_loop()
-    # loop.create_task(teaming())
+    users = useSql("SELECT username, chatId FROM users")
+
     executor.start_polling(dp, skip_updates=True)

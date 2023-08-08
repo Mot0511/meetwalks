@@ -16,16 +16,13 @@ def getUsers(user, count, rejAppl=None):
 
     users = []
     userdata = useSql(f"SELECT * FROM users WHERE username='{user}'")[0]
-    print(strRej)
     if not (userdata[8] == '[]'):
         if userdata[5] == 'Не важно':
-            data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND NOT coordinates='[]' {strRej}ORDER BY RANDOM()")
-            if data == []:
-                data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[4]}' AND genre=anotherGenre AND NOT username='{userdata[1]}' AND NOT coordinates='[]' {strRej}ORDER BY RANDOM()")
+            print(1)
+            data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND (anotherGenre='Не важно' OR (genre='{userdata[4]}' AND genre=anotherGenre)) AND NOT username='{userdata[1]}' AND NOT coordinates='[]' {strRej}ORDER BY RANDOM()")
         else:
-            data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='{userdata[4]}' AND NOT username='{userdata[1]}' AND NOT coordinates='[]' {strRej}ORDER BY RANDOM()")
-            if data == []:
-                data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND NOT coordinates='[]' {strRej}ORDER BY RANDOM()")
+            print(2)
+            data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND ((genre='{userdata[5]}' AND anotherGenre='{userdata[4]}') OR (genre='{userdata[5]}' AND anotherGenre='Не важно')) AND NOT username='{userdata[1]}' AND NOT coordinates='[]' {strRej}ORDER BY RANDOM()")
 
         if not(data == []):
             data = sortByDistance(user, data)
@@ -42,8 +39,10 @@ def getUsers(user, count, rejAppl=None):
 
             else:
                 if userdata[5] == 'Не важно':
+                    print(3)
                     data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[4]}' AND genre=anotherGenre AND NOT username='{userdata[1]}' AND NOT coordinates='[]' {strRej}ORDER BY RANDOM()")
                 else:
+                    print(4)
                     data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND NOT coordinates='[]' {strRej}ORDER BY RANDOM()")
                 data = sortByDistance(user, data)
                 remainder = count - 1 - len(users)
@@ -60,14 +59,10 @@ def getUsers(user, count, rejAppl=None):
 
     remainder = count - 1 - len(users)
     if userdata[5] == 'Не важно':
-        data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND coordinates='[]' {strRej}ORDER BY RANDOM()")
-        if data == []:
-            data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[4]}' AND genre=anotherGenre AND NOT username='{userdata[1]}' AND coordinates='[]' {strRej}ORDER BY RANDOM()")
+        data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND (anotherGenre='Не важно' OR (genre='{userdata[4]}' AND genre=anotherGenre)) AND NOT username='{userdata[1]}' AND coordinates='[]' {strRej}ORDER BY RANDOM()")
 
     else:
-        data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='{userdata[4]}' AND NOT username='{userdata[1]}' AND coordinates='[]' {strRej}ORDER BY RANDOM()")
-        if data == []:
-            data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND genre='{userdata[5]}' AND anotherGenre='Не важно' AND NOT username='{userdata[1]}' AND coordinates='[]' {strRej}ORDER BY RANDOM()")
+        data = useSql(f"SELECT * FROM users WHERE (age < ({userdata[6]} + 2) AND age > ({userdata[6]} - 2)) AND city='{userdata[7]}' AND ((genre='{userdata[5]}' AND anotherGenre='{userdata[4]}') OR (genre='{userdata[5]}' AND anotherGenre='Не важно')) AND NOT username='{userdata[1]}' AND coordinates='[]' {strRej}ORDER BY RANDOM()")
 
     if not (data == []):
         if len(data) < remainder:

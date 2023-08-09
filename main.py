@@ -36,7 +36,6 @@ teams = {}
 teamIds = {}
 rejAppl = {}
 
-isFI = {}
 
 @dp.message_handler(commands=['start', 's'])
 async def start(message: types.Message):
@@ -49,20 +48,19 @@ async def start(message: types.Message):
         action[getId(message)] = 'setName'
     else:
         await message.reply('Meetwalks - это бот, в котором можно найти людей для прогулки в твоем городе', reply_markup=kb_menu)
-        if not(getId(message) in isFI):
-            loop = asyncio.get_event_loop()
-            loop.create_task(findInvites(message, getId(message)))
-            isFI[getId(message)] = True
+
 
         if useSql(f"SELECT chatID FROM users WHERE username='{getId(message)}'")[0][0] == None:
             useSql(f"UPDATE users SET chatId={message.chat.id} WHERE username='{getId(message)}'")
+            loop = asyncio.get_event_loop()
+            loop.create_task(findInvites(message.chat.id, getId(message)))
 
         await reset(message, getId(message), isAction=False)
 
 def getName(user):
     name = useSql(f"SELECT name FROM users WHERE username='{user}'")[0][0]
     return name
-async def findInvites(mess, user):
+async def findInvites(chatId, user):
     while True:
         if not(useSql(f"SELECT username FROM users WHERE username='{user}'")):
             await asyncio.sleep(1)
@@ -71,7 +69,7 @@ async def findInvites(mess, user):
         if invites:
             inviter = invites[0]
             users = json.loads(useSql(f"SELECT members FROM teams WHERE id='{teamIds[inviter]}'")[0][0])
-            await bot.send_message(mess.chat.id, 'Есть возможность погулять с этими людьми:')
+            await bot.send_message(chatId, 'Есть возможность погулять с этими людьми:')
             users.remove(user)
             for i in users:
                 data = useSql(f"SELECT * FROM users WHERE username='{i}'")[0]
@@ -82,8 +80,8 @@ async def findInvites(mess, user):
                 else:
                     caption = f'\n\n@{data[1]}\nИмя: {data[2]}\nПол: {data[4]}\nВозраст: {data[6]} лет\nГород: {data[7]}\nРазмер компании: {size}'
 
-                await bot.send_photo(mess.chat.id, photo=data[3], caption=caption, reply_markup=kb_allow)
-                owners[getId(mess)] = inviter
+                await bot.send_photo(chatId, photo=data[3], caption=caption, reply_markup=kb_allow)
+                owners[user] = inviter
                 useSql(f"UPDATE users SET invites='[]' WHERE username='{user}'")
 
         await asyncio.sleep(1)
@@ -125,7 +123,7 @@ async def findTeam(mess):
                     username = getId(mess)
                     oldChat = json.loads(useSql(f"SELECT chat FROM teams WHERE id={teamId}")[0][0])
                     oldRejects = json.loads(useSql(f"SELECT rejects FROM teams WHERE id={teamId}")[0][0])
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.3)
                     newChat = json.loads(useSql(f"SELECT chat FROM teams WHERE id={teamId}")[0][0])
                     newRejects = json.loads(useSql(f"SELECT rejects FROM teams WHERE id={teamId}")[0][0])
                     if not (oldRejects == newRejects):
@@ -217,13 +215,10 @@ async def find(mess):
 
 @dp.message_handler()
 async def text(mess: types.Message):
-    if useSql(f"SELECT chatID FROM users WHERE username='{getId(message)}'")[0][0] == None:
-        useSql(f"UPDATE users SET chatId={message.chat.id} WHERE username='{getId(message)}'")
-
-    if not(getId(mess) in isFI):
+    if useSql(f"SELECT chatID FROM users WHERE username='{getId(mess)}'")[0][0] == None:
+        useSql(f"UPDATE users SET chatId={mess.chat.id} WHERE username='{getId(mess)}'")
         loop = asyncio.get_event_loop()
-        loop.create_task(findInvites(mess, getId(mess)))
-        isFI[getId(mess)] = True
+        loop.create_task(findInvites(mess.chat.id, getId(mess)))
 
     global action
     global genre
@@ -361,18 +356,16 @@ async def text(mess: types.Message):
                     new('users')
 
                 if getId(mess) in coordinates:
-                    useSql(f"INSERT INTO users (username, name, photo, genre, anotherGenre, age, city, coordinates) VALUES ('{getId(mess)}', '{name[getId(mess)]}', '{photo[getId(mess)]}', '{genre[getId(mess)]}', '{mess.text}', '{age[getId(mess)]}', '{city[getId(mess)]}', '{json.dumps(coordinates[getId(mess)])}')")
+                    useSql(f"INSERT INTO users (username, name, photo, genre, anotherGenre, age, city, coordinates, invites, chatId) VALUES ('{getId(mess)}', '{name[getId(mess)]}', '{photo[getId(mess)]}', '{genre[getId(mess)]}', '{mess.text}', '{age[getId(mess)]}', '{city[getId(mess)]}', '{json.dumps(coordinates[getId(mess)])}', '[]', {message.chat.id})")
                 else:
-                    useSql(f"INSERT INTO users (username, name, photo, genre, anotherGenre, age, city, coordinates) VALUES ('{getId(mess)}', '{name[getId(mess)]}', '{photo[getId(mess)]}', '{genre[getId(mess)]}', '{mess.text}', '{age[getId(mess)]}', '{city[getId(mess)]}', '[]')")
+                    useSql(f"INSERT INTO users (username, name, photo, genre, anotherGenre, age, city, coordinates, invites, chatId) VALUES ('{getId(mess)}', '{name[getId(mess)]}', '{photo[getId(mess)]}', '{genre[getId(mess)]}', '{mess.text}', '{age[getId(mess)]}', '{city[getId(mess)]}', '[]', '[]', {message.chat.id})")
 
                 await mess.reply('Анкета готова', reply_markup=kb_menu)
-                if not(getId(mess) in isFI):
+                if not(isEditing):
                     loop = asyncio.get_event_loop()
-                    loop.create_task(findInvites(mess, getId(mess)))
-                    isFI[getId(mess)] = True
+                    loop.create_task(findInvites(mess.chat.id, getId(mess)))
 
-                if useSql(f"SELECT chatID FROM users WHERE username='{getId(message)}'")[0][0] == None:
-                    useSql(f"UPDATE users SET chatId={message.chat.id} WHERE username='{getId(message)}'")
+
 
                 isEditing[getId(mess)] = False
                 action[getId(mess)] = 0
@@ -416,5 +409,8 @@ if __name__ == '__main__':
 
     loop = asyncio.get_event_loop()
     users = useSql("SELECT username, chatId FROM users")
+    for i in users:
+        if i[1]:
+            loop.create_task(findInvites(i[1], i[0]))
 
     executor.start_polling(dp, skip_updates=True)

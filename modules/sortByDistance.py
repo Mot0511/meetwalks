@@ -1,6 +1,5 @@
 from modules.getDistance import *
 def sortByDistance(username, data):
-    print(data)
     N = len(data)
     for i in range(N - 1):
         for j in range(N - i - 1):

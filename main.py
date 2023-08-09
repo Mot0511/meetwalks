@@ -15,7 +15,7 @@ from modules.sortByDistance import *
 from modules.buildTeam import *
 from modules.getUsers import *
 
-dev_mode = True
+dev_mode = False
 
 if dev_mode:
     api_token = open('token_test.txt', 'r').read()

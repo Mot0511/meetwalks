@@ -15,8 +15,14 @@ from modules.sortByDistance import *
 from modules.buildTeam import *
 from modules.getUsers import *
 
-api_token = open('token_test.txt', 'r').read()
-bot = Bot(token=api_token)
+dev_mode = True
+
+if dev_mode:
+    api_token = open('token_test.txt', 'r').read()
+    bot = Bot(token=api_token)
+else:
+    api_token = open('token.txt', 'r').read()
+    bot = Bot(token=api_token, proxy='http://proxy.server:3128')
 
 dp = Dispatcher(bot)
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'features/home/screens/home_screen.dart';
+import 'package:meetwalks/features/home/screens/company_screen.dart';
+import 'package:meetwalks/features/home/screens/home_screen.dart';
 import 'theme.dart';
 
 void main() {
@@ -11,6 +12,13 @@ class Meetwalks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(theme: theme, home: const HomeScreen());
+    return MaterialApp(
+      theme: theme,
+      home: HomeScreen(),
+      routes: {
+        '/home': (context) => HomeScreen(),
+        '/company': (context) => CompanyScreen(),
+      },
+    );
   }
 }

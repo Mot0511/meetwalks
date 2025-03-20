@@ -1,2 +1,2 @@
 export 'screens/screens.dart';
-export 'utils/time_util.dart';
+export 'utils/team_settings_util.dart';

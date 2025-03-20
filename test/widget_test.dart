@@ -8,12 +8,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:meetwalks/main.dart';
+
+import 'package:meetwalks/theme.dart';
+import 'package:meetwalks/features/home/screens/home_screen.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const  Meetwalks());
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
@@ -27,4 +29,14 @@ void main() {
     expect(find.text('0'), findsNothing);
     expect(find.text('1'), findsOneWidget);
   });
+}
+
+
+class Meetwalks extends StatelessWidget {
+  const Meetwalks({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(theme: theme, home: const HomeScreen());
+  }
 }

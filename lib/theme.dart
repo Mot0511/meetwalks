@@ -9,6 +9,7 @@ ThemeData theme = ThemeData(
       fontWeight: FontWeight.w500,
     ),
   ),
+  scaffoldBackgroundColor: Colors.transparent
 );
 
 TextStyle mediumTextStyle = TextStyle(color: Colors.white, fontSize: 20);
